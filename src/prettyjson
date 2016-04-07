@@ -69,9 +69,9 @@ Options:
   -a, --advanced-parse          Do a more complex advanced parsing of the input to improve formatting
                                 for language specific constructs.
                                 Opposite of --basic-parse off by default.
-  -b, --basic-parse             Run a simpler parser that does not include some extra language specifc
+  -b, --basic-parse             Run a simpler parser that does not include some extra language specific
                                 formatting.
-                                Oposite of --advanced-parse, selected by default.
+                                Opposite of --advanced-parse, selected by default.
 
 """
 

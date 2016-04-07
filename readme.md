@@ -84,14 +84,18 @@ Options:
                                 Opposite of --relax.
   --relax                       Attempt to format as JSON without verifying it's correctness
                                 Opposite of --strict and selected by default.
+  -p, --space                   Use spaces for alignment, -s is tab size so use -p
+                                  Default: True
+  -t, --tab                     Use tabs rather than spaces for alignment, --step-size will be
+                                ignored if set. Default: False
   --multi-line-strings          Don't break out of a string when a new line is encountered
                                 relax mode only and off by default. You probably don't need this.
   -a, --advanced-parse          Do a more complex advanced parsing of the input to improve formatting
                                 for language specific constructs.
                                 Opposite of --basic-parse off by default.
-  -b, --basic-parse             Run a simpler parser that does not include some extra language specifc
+  -b, --basic-parse             Run a simpler parser that does not include some extra language specific
                                 formatting.
-                                Oposite of --advanced-parse, selected by default.
+                                Opposite of --advanced-parse, selected by default.
 ```
 
 # Licence
