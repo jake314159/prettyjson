@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 
 """
+prettyjson
 
-Script that takes stdin and attempts to format it as JSON
-Will however (probably) NOT fail if poorly formatted so you
-can still get a look at what the data is
+Script that takes data from stdin and attempts to format
+it as JSON. Will (probably) NOT fail if poorly formatted
+so you can still get a look at what the data is even if
+it is not correct JSON
 
-Use by piping data into the script via standard out:
-    $ curl 'example.com/api/test.json' | prettyjson
-
+For more information on how to use prettyjson run:
+  $ prettyjson --help
 
 
 The MIT License (MIT)
@@ -59,6 +60,10 @@ Options:
                                 Opposite of --relax.
   --relax                       Attempt to format as JSON without verifying it's correctness
                                 Opposite of --strict and selected by default.
+  -p, --space                   Use spaces for alignment, -s is tab size so use -p
+                                Default: True
+  -t, --tab                     Use tabs rather than spaces for alignment, --step-size will be
+                                ignored if set. Default: False
   --multi-line-strings          Don't break out of a string when a new line is encountered
                                 relax mode only and off by default. You probably don't need this.
   -a, --advanced-parse          Do a more complex advanced parsing of the input to improve formatting
@@ -70,115 +75,129 @@ Options:
 
 """
 
-import sys
-import re
+def pretty_json_relaxed(s, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
+    out = ''
+    step = 0
+    in_marks = False  # Are we in speech marks? What character will indicate we are leaving it?
+    escape = False  # Is the next character escaped?
 
-# Settings
-step_size = 4
-strict = False
-multi_line_strings = False
-advanced_parse = False
-
-# Parse command line arguments
-key = ''
-while len(sys.argv) > 0:
-    try:
-        key = sys.argv.pop(0)
-        if key in ['-h', '--help']:
-            print help_text
-            sys.exit(0)
-        elif key in ['-s', '--step-size']:
-            value = sys.argv.pop(0)
-            try:
-                step_size = int(value)
-            except:
-                pass
-        elif key in ['--strict']:
-            strict = True
-        elif key in ['--relax']:
-            strict = False
-        elif key in ['--multi-line-strings']:
-            multi_line_strings = True
-        elif key in ['-a', '--advanced', '--advanced-parse', '--advanced-parser']:
-            advanced_parse = True
-        elif key in ['-b', '--basic', '--basic-parse', '--basic-parser']:
-            advanced_parse = False
-    except Exception:
-        print "Error reading command line argument '%s'" % key
-
-if strict:
-    # Run in strict mode (where the input must be perfect JSON)
-    import json
-    print json.dumps(json.loads(sys.stdin.read()), indent=step_size, separators=(',',': '))
-    sys.exit(0)  # Exit so won't run the relaxed parser
-
-out = ''
-s = ''
-
-# Load stdin into a string
-for line in sys.stdin.read():
-    s += line
-
-if advanced_parse:
-    # \x1D (group seperator) is used as a special character for the parser
-    # \0x1D has the same effect as a quote ('") but will not be ouputted
-    # Can be used for special formatting cases to stop text being processed by the parser
-    s = re.sub(r'datetime\(([^)]*)\)', r'datetime(\x1D\g<1>\x1D)', s)
-    s = s.replace('\\x1D', chr(0X1D))  # Replace the \x1D with the single 1D character
-
-print ""  # New line
-
-# Run the relaxed parser
-step = 0
-in_marks = False  # Are we in speech marks? What character will indicate we are leaving it?
-escape = False  # Is the next character escaped?
-for c in s:
-    if escape:
-        # This character is escaped so output it without looking at it
-        escape = False
-        out += c
-    elif c in ['\\']:
-        # Escape the next character
-        escape = True
-        out += c
-    elif in_marks:
-        # We are in speech marks
-        if c == in_marks or (not multi_line_strings and c in ['\n', '\r']):
-            # but we just got to the end of them
-            in_marks = False
-        if c not in ["\x1D"]:
-            out += c
-    elif c in ['"', "'", "\x1D"]:
-        # Enter speech marks
-        in_marks = c
-        if c not in ["\x1D"]:
-            out += c
-    elif c in ['{', '[']:
-        # Increase step and add new line
-        step += step_size
-        out += c
-        out += '\n'
-        out += ' '*step
-    elif c in ['}', ']']:
-        # Decrease step and add new line
-        step -= step_size
-        out += '\n'
-        out += ' '*step
-        out += c
-    elif c in [':']:
-        # Follow with a space
-        out += c
-        out += ' '
-    elif c in [',']:
-        # Follow with a new line
-        out += c
-        out += '\n'
-        out += ' '*step
-    elif c in [' ', '\n', '\r', '\t', '\x1D']:
-        #Ignore this character
-        pass
+    if tab:
+        step_char = '\t'
+        step_size = 1  # Only 1 tab per step
     else:
-        # Character of no special interest, so just output it as it is
-        out += c
+        step_char = ' '
+    for c in s:
+        if escape:
+            # This character is escaped so output it without looking at it
+            escape = False
+            out += c
+        elif c in ['\\']:
+            # Escape the next character
+            escape = True
+            out += c
+        elif in_marks:
+            # We are in speech marks
+            if c == in_marks or (not multi_line_strings and c in ['\n', '\r']):
+                # but we just got to the end of them
+                in_marks = False
+            if c not in ["\x1D"]:
+                out += c
+        elif c in ['"', "'", "\x1D"]:
+            # Enter speech marks
+            in_marks = c
+            if c not in ["\x1D"]:
+                out += c
+        elif c in ['{', '[']:
+            # Increase step and add new line
+            step += step_size
+            out += c
+            out += '\n'
+            out += step_char * step
+        elif c in ['}', ']']:
+            # Decrease step and add new line
+            step -= step_size
+            out += '\n'
+            out += step_char * step
+            out += c
+        elif c in [':']:
+            # Follow with a space
+            out += c
+            out += ' '
+        elif c in [',']:
+            # Follow with a new line
+            out += c
+            out += '\n'
+            out += step_char * step
+        elif c in [' ', '\n', '\r', '\t', '\x1D']:
+            #Ignore this character
+            pass
+        else:
+            # Character of no special interest, so just output it as it is
+            out += c
+    return out
 
-print out
+if __name__ == '__main__':
+    ## Run as a terminal script ##
+
+    import sys
+    import re
+
+    # Settings
+    step_size = 4
+    strict = False
+    multi_line_strings = False
+    advanced_parse = False
+    tab = False
+
+    # Parse command line arguments
+    key = ''
+    while len(sys.argv) > 0:
+        try:
+            key = sys.argv.pop(0)
+            if key in ['-h', '--help']:
+                print help_text
+                sys.exit(0)
+            elif key in ['-s', '--step-size']:
+                value = sys.argv.pop(0)
+                try:
+                    step_size = int(value)
+                except:
+                    pass
+            elif key in ['--strict']:
+                strict = True
+            elif key in ['--relax', '--relaxed']:
+                strict = False
+            elif key in ['-t','--tab', '--tabs']:
+                tab = True
+            elif key in ['-p', '--space', '--spaces']:
+                tab = False
+            elif key in ['--multi-line-strings', '--multi-line-string']:
+                multi_line_strings = True
+            elif key in ['-a', '--advanced', '--advanced-parse', '--advanced-parser']:
+                advanced_parse = True
+            elif key in ['-b', '--basic', '--basic-parse', '--basic-parser']:
+                advanced_parse = False
+        except Exception:
+            print "Error reading command line argument '%s'" % key
+
+    if strict:
+        # Run in strict mode (where the input must be perfect JSON)
+        import json
+        print json.dumps(json.loads(sys.stdin.read()), indent=step_size, separators=(',',': '))
+        sys.exit(0)  # Exit so won't run the relaxed parser
+
+    # Load stdin into a string
+    s = ''
+    for line in sys.stdin.read():
+        s += line
+
+    if advanced_parse:
+        # \x1D (group seperator) is used as a special character for the parser
+        # \0x1D has the same effect as a quote ('") but will not be ouputted
+        # Can be used for special formatting cases to stop text being processed by the parser
+        s = re.sub(r'datetime\(([^)]*)\)', r'datetime(\x1D\g<1>\x1D)', s)
+        s = s.replace('\\x1D', chr(0X1D))  # Replace the \x1D with the single 1D character
+
+    # Print the result to stdout
+    print ""  # New line
+    print pretty_json_relaxed(s, step_size=step_size, multi_line_strings=multi_line_strings, advanced_parse=advanced_parse, tab=tab)
