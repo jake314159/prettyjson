@@ -71,9 +71,13 @@ The output from 'prettyjson --help'
 Usage:
   $ [some_other_command] | prettyjson [args]
   $ prettyjson [args] < [json_file]
+  $ prettyjson [json_file]
+  $ prettyjson -f [json_file]
 Examples:
   $ curl 'example.com/api/test.json' | prettyjson --step-size 2
   $ prettyjson < data.json
+  $ prettyjson data.json
+  $ prettyjson -f data1.json data2.json
   $ cat data.json | prettyjson > pretty_data.json
 
 
@@ -85,7 +89,7 @@ Options:
   --relax                       Attempt to format as JSON without verifying it's correctness
                                 Opposite of --strict and selected by default.
   -p, --space                   Use spaces for alignment, -s is tab size so use -p
-                                  Default: True
+                                Default: True
   -t, --tab                     Use tabs rather than spaces for alignment, --step-size will be
                                 ignored if set. Default: False
   --multi-line-strings          Don't break out of a string when a new line is encountered
@@ -96,6 +100,13 @@ Options:
   -b, --basic-parse             Run a simpler parser that does not include some extra language specific
                                 formatting.
                                 Opposite of --advanced-parse, selected by default.
+  -f, --file                    Load the json input from a specified file rather than from standard input
+                                Any argument without a option tag will also be considered a file
+                                If more than one file is specified then all the files will be concatinated
+                                before parsing
+  --hard-error                  Exit on error with no attempt to recover
+  --soft-error                  Attempt to recover from an error
+
 ```
 
 # Licence

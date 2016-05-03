@@ -47,9 +47,13 @@ Author: Jake Causon (Github: @jake314159)
 Usage:
   $ [some_other_command] | prettyjson [args]
   $ prettyjson [args] < [json_file]
+  $ prettyjson [json_file]
+  $ prettyjson -f [json_file]
 Examples:
   $ curl 'example.com/api/test.json' | prettyjson --step-size 2
   $ prettyjson < data.json
+  $ prettyjson data.json
+  $ prettyjson -f data1.json data2.json
   $ cat data.json | prettyjson > pretty_data.json
 
 
@@ -72,6 +76,12 @@ Options:
   -b, --basic-parse             Run a simpler parser that does not include some extra language specific
                                 formatting.
                                 Opposite of --advanced-parse, selected by default.
+  -f, --file                    Load the json input from a specified file rather than from standard input
+                                Any argument without a option tag will also be considered a file
+                                If more than one file is specified then all the files will be concatinated
+                                before parsing
+  --hard-error                  Exit on error with no attempt to recover
+  --soft-error                  Attempt to recover from an error
 
 """
 
@@ -142,6 +152,9 @@ if __name__ == '__main__':
     import sys
     import re
 
+    in_files = []
+    hard_error = True
+
     # Settings
     step_size = 4
     strict = False
@@ -151,10 +164,13 @@ if __name__ == '__main__':
 
     # Parse command line arguments
     key = ''
+    sys.argv.pop(0)
     while len(sys.argv) > 0:
         try:
             key = sys.argv.pop(0)
-            if key in ['-h', '--help']:
+            if key == 'prettyjson':
+                pass
+            elif key in ['-h', '--help']:
                 print help_text
                 sys.exit(0)
             elif key in ['-s', '--step-size']:
@@ -177,8 +193,19 @@ if __name__ == '__main__':
                 advanced_parse = True
             elif key in ['-b', '--basic', '--basic-parse', '--basic-parser']:
                 advanced_parse = False
+            elif key in ['--soft-error']:
+                hard_error = False
+            elif key in ['--hard-error']:
+                hard_error = True
+            elif key in ['-f', '--file', '--in-file', '--input', '--input-file', '--in']:
+                in_files.append(sys.argv.pop(0))
+            elif not key.startswith('-'):
+                # Is not a command argument so is most likely a file path
+                in_files.append(key)
         except Exception:
             print "Error reading command line argument '%s'" % key
+            if hard_error:
+                sys.exit(1)
 
     if strict:
         # Run in strict mode (where the input must be perfect JSON)
@@ -186,10 +213,21 @@ if __name__ == '__main__':
         print json.dumps(json.loads(sys.stdin.read()), indent=step_size, separators=(',',': '))
         sys.exit(0)  # Exit so won't run the relaxed parser
 
-    # Load stdin into a string
     s = ''
-    for line in sys.stdin.read():
-        s += line
+    if len(in_files) == 0:
+        # Load stdin into a string
+        for line in sys.stdin.read():
+            s += line
+    else:
+        # Load the specified files into a string
+        for f in in_files:
+            try:
+                with open(f, "r") as file_handle:
+                    s += file_handle.read()
+            except IOError:
+                print "Error: Unable to read the file '%s'" % f
+                if hard_error:
+                    sys.exit(2)
 
     if advanced_parse:
         # \x1D (group seperator) is used as a special character for the parser
