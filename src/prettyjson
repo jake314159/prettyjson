@@ -104,6 +104,10 @@ def pretty_json_relaxed(s, step_size=4, multi_line_strings=False, advanced_parse
     else:
         step_char = ' '
     for c in s:
+
+        if step < 0:
+            step = 0
+
         if escape:
             # This character is escaped so output it without looking at it
             escape = False
