@@ -39,8 +39,8 @@ SOFTWARE.
 help_text = """
 prettyjson
 
-Attempts to format JSON inputted on standard input without
-requiring it to be correctly formatted JSON data.
+Attempts to format JSON strings inputted on standard input without
+requiring it to be correctly formatted.
 
 Author: Jake Causon (Github: @jake314159)
 
@@ -58,119 +58,197 @@ Examples:
 
 
 Options:
-  -h, --help                    Display help text (and exit).
-  -s [INT], --step-size [INT]   Set the tab size used when formatting the JSON. Default 4
-  --strict                      Ensure input is correct JSON and error if not.
-                                Opposite of --relax.
-  --relax                       Attempt to format as JSON without verifying it's correctness
-                                Opposite of --strict and selected by default.
-  -p, --space                   Use spaces for alignment, -s is tab size so use -p
-                                Default: True
-  -t, --tab                     Use tabs rather than spaces for alignment, --step-size will be
-                                ignored if set. Default: False
-  --multi-line-strings          Don't break out of a string when a new line is encountered
-                                relax mode only and off by default. You probably don't need this.
-  -a, --advanced-parse          Do a more complex advanced parsing of the input to improve formatting
-                                for language specific constructs.
-                                Opposite of --basic-parse off by default.
-  -b, --basic-parse             Run a simpler parser that does not include some extra language specific
-                                formatting.
-                                Opposite of --advanced-parse, selected by default.
-  -f, --file                    Load the json input from a specified file rather than from standard input
-                                Any argument without a option tag will also be considered a file
-                                If more than one file is specified then all the files will be concatinated
-                                before parsing
-  --hard-error                  Exit on error with no attempt to recover
-  --soft-error                  Attempt to recover from an error
+  -h, --help                Display help text (and exit).
+  -s INT, --step-size INT   Set the tab size used. Default 4
+  --strict                  Ensure input is correct JSON and error if not.
+                            Opposite of --relax.
+  --relax                   Attempt to format without verifying the structure
+                            Opposite of --strict and selected by default.
+  -p, --space               Use spaces for alignment, -s is tab size so use -p
+                            Default: True
+  -t, --tab                 Use tabs rather than spaces for alignment,
+                            --step-size will be ignored if set. Default False
+  --multi-line-strings      Don't break out of a string when a new line is
+                            encountered in relax mode only. Default False
+  -b, --basic-parse         Run a simple parser that does not include language
+                            specific formatting.
+  -f, --file                Load the input from a file rather than stdin.
+                            If more than one file is specified then all the
+                            files will be concatinated before parsing
+  --hard-error              Exit on error with no attempt to recover
+  --soft-error              Attempt to recover from an error
 
 """
 
-def pretty_json_relaxed(s, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
-    out = ''
-    step = 0
+class pretty_json_builder:
+    """
+    Interface for the json builder that takes a series of characters & commands and builds the final formatted output string
+    """
+    def init_string_process(self, s):
+        return s
+    def append_to_output(self, c):
+        pass
+    def newline_to_output(self):
+        pass
+    def increase_step(self):
+        pass
+    def decrease_step(self):
+        pass
+    def to_string(self, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
+        return ''
+
+class _pretty_json_builder_strict(pretty_json_builder):
+    def __init__(self):
+        self.s = ''
+    def init_string_process(self, s):
+        self.s = s
+        return None  # We have everything we need so stop any more parsing
+    def to_string(self, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
+        import json
+        return json.dumps(json.loads(s), indent=step_size, separators=(',',': '))
+
+class _pretty_json_builder_relaxed(pretty_json_builder):
+    def __init__(self):
+        self.stack = [['']]
+
+    def append_to_output(self, c):
+        self.stack[-1][-1] += c
+
+    def newline_to_output(self):
+        if not ('datetime' in self.stack[-1][-1] and ')' not in self.stack[-1][-1]):
+            self.stack[-1].append('')
+
+    def increase_step(self):
+        self.stack[-1].append([''])  # Add the new array to the correct part of the structure
+        self.stack.append(self.stack[-1][-1])  # Add the new focus to the top of the stack
+
+    def decrease_step(self):
+        if len(self.stack) > 1:
+            self.stack.pop()
+        self.newline_to_output()
+
+    # Do any processing of the structure, eg. flattening lists with 1 element
+    def _process(self, thing):
+        change = 0  # The number of things this function call has changed
+
+        if isinstance(thing, list):
+            # We have a list so deal with each element in turn
+            max_length = 0  # The max length of the elements in this list
+            consider_compress = True
+            for i in range(0, len(thing)):
+                if isinstance(thing[i], list):
+                    consider_compress = False  # Don't try to compress a list
+                max_length = max(max_length, len(thing[i]))
+                if isinstance(thing[i], list) and len(thing[i]) == 1 and len(thing) > i+1:
+                    # We have a list with 1 element so colapse it
+                    output1, c1 = self._process(thing[i][0])
+                    output2, c2 = self._process(thing[i+1])
+                    thing[i-1] = '%s%s%s' % (thing[i-1], output1, output2)
+                    thing[i] = thing[i+1] = ''
+                    change += 1 + c1 + c2
+                else:
+                    # Recursively parse this element of the list
+                    output, c = self._process(thing[i])
+                    change += c
+                    thing[i] = output
+
+            # Merge a few short elements into the same line
+            if consider_compress and max_length <= 5 and len(thing) <= 6:
+                change += 1
+                thing = [' '.join(thing)]
+
+            # Remove any empty strings
+            for i in range(len(thing)-1, 0, -1):
+                if thing[i] == '':
+                    thing.pop(i)
+
+        return thing, change
+
+    def to_string(self, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
+        step_char = ' '
+        if tab:
+            step_char = '\t'
+            step_size = 1  # Only 1 tab per step
+
+        # Process until no more changes are made
+        changes = 1
+        output = self.stack[0]
+        while changes:
+            output, changes = self._process(output)
+
+        def _to_string(thing, depth=0):
+            o = ''
+            for t in thing:
+                if isinstance(t, list):
+                     o += _to_string(t, depth+1)
+                elif t != '':
+                    o += '%s%s\n' % (step_char*depth*step_size, t)
+            return o
+
+        return _to_string(output)
+
+def pretty_json_relaxed(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
+    if not builder:
+        builder = _pretty_json_builder_relaxed()
+
+    s = builder.init_string_process(s) or '' # Give the builder a chance to process the raw string
+
+    # Parse over the string passing the appropriate commands to the builder class
     in_marks = False  # Are we in speech marks? What character will indicate we are leaving it?
     escape = False  # Is the next character escaped?
-
-    if advanced_parse:
-        # \x1D (group seperator) is used as a special character for the parser
-        # \0x1D has the same effect as a quote ('") but will not be ouputted
-        # Can be used for special formatting cases to stop text being processed by the parser
-        s = re.sub(r'datetime\(([^)]*)\)', r'datetime(\x1D\g<1>\x1D)', s)
-        s = s.replace('\\x1D', chr(0X1D))  # Replace the \x1D with the single 1D character
-
-    if tab:
-        step_char = '\t'
-        step_size = 1  # Only 1 tab per step
-    else:
-        step_char = ' '
     for c in s:
-
-        if step < 0:
-            step = 0
-
         if escape:
             # This character is escaped so output it without looking at it
             escape = False
-            out += c
+            builder.append_to_output(c)
         elif c in ['\\']:
             # Escape the next character
             escape = True
-            out += c
+            builder.append_to_output(c)
         elif in_marks:
             # We are in speech marks
             if c == in_marks or (not multi_line_strings and c in ['\n', '\r']):
                 # but we just got to the end of them
                 in_marks = False
-            if c not in ["\x1D"]:
-                out += c
-        elif c in ['"', "'", "\x1D"]:
-            # Enter speech marks
-            in_marks = c
-            if c not in ["\x1D"]:
-                out += c
+            builder.append_to_output(c)
+        elif c in ['"', "'"]:
+            in_marks = c  # Enter speech marks
+            builder.append_to_output(c)
         elif c in ['{', '[']:
             # Increase step and add new line
-            step += step_size
-            out += c
-            out += '\n'
-            out += step_char * step
+            builder.append_to_output(c)
+            builder.increase_step()
         elif c in ['}', ']']:
             # Decrease step and add new line
-            step -= step_size
-            out += '\n'
-            out += step_char * step
-            out += c
+            builder.decrease_step()
+            builder.append_to_output(c)
         elif c in [':']:
             # Follow with a space
-            out += c
-            out += ' '
+            builder.append_to_output(c)
+            builder.append_to_output(' ')
         elif c in [',']:
             # Follow with a new line
-            out += c
-            out += '\n'
-            out += step_char * step
-        elif c in [' ', '\n', '\r', '\t', '\x1D']:
-            #Ignore this character
-            pass
+            builder.append_to_output(c)
+            builder.newline_to_output()
+        elif c in [' ', '\n', '\r', '\t']:
+            pass  # Ignore this character
         else:
             # Character of no special interest, so just output it as it is
-            out += c
-    return out
+            builder.append_to_output(c)
+
+    return builder.to_string(step_size=step_size, multi_line_strings=multi_line_strings, tab=tab)
 
 if __name__ == '__main__':
     ## Run as a terminal script ##
-
     import sys
     import re
 
+    # Settings
     in_files = []
     hard_error = True
-
-    # Settings
     step_size = 4
     strict = False
     multi_line_strings = False
-    advanced_parse = False
     tab = False
 
     # Parse command line arguments
@@ -185,9 +263,8 @@ if __name__ == '__main__':
                 print help_text
                 sys.exit(0)
             elif key in ['-s', '--step-size']:
-                value = sys.argv.pop(0)
                 try:
-                    step_size = int(value)
+                    step_size = int(sys.argv.pop(0))
                 except:
                     pass
             elif key in ['--strict']:
@@ -200,8 +277,6 @@ if __name__ == '__main__':
                 tab = False
             elif key in ['--multi-line-strings', '--multi-line-string']:
                 multi_line_strings = True
-            elif key in ['-a', '--advanced', '--advanced-parse', '--advanced-parser']:
-                advanced_parse = True
             elif key in ['-b', '--basic', '--basic-parse', '--basic-parser']:
                 advanced_parse = False
             elif key in ['--soft-error']:
@@ -218,11 +293,9 @@ if __name__ == '__main__':
             if hard_error:
                 sys.exit(1)
 
+    builder = None
     if strict:
-        # Run in strict mode (where the input must be perfect JSON)
-        import json
-        print json.dumps(json.loads(sys.stdin.read()), indent=step_size, separators=(',',': '))
-        sys.exit(0)  # Exit so won't run the relaxed parser
+        builder = _pretty_json_builder_strict()
 
     s = ''
     if len(in_files) == 0:
@@ -242,4 +315,5 @@ if __name__ == '__main__':
 
     # Print the result to stdout
     print ""  # New line
-    print pretty_json_relaxed(s, step_size=step_size, multi_line_strings=multi_line_strings, advanced_parse=advanced_parse, tab=tab)
+    print pretty_json_relaxed(s, step_size=step_size, multi_line_strings=multi_line_strings, tab=tab, builder=builder)
+    
