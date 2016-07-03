@@ -158,6 +158,7 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
                 thing = [' '.join(thing)]
 
             # Remove any empty strings
+            # TODO: '[[1]]' seems to infi-loop, here I think
             for i in range(len(thing)-1, 0, -1):
                 if thing[i] == '':
                     thing.pop(i)
@@ -187,7 +188,7 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
 
         return _to_string(output)
 
-def pretty_json_relaxed(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
+def prettify(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
     if not builder:
         builder = _pretty_json_builder_relaxed()
 
@@ -237,6 +238,10 @@ def pretty_json_relaxed(s, step_size=4, multi_line_strings=False, tab=False, bui
             builder.append_to_output(c)
 
     return builder.to_string(step_size=step_size, multi_line_strings=multi_line_strings, tab=tab)
+
+# aliases for prettify
+stringify = prettify
+dumps = prettify
 
 if __name__ == '__main__':
     ## Run as a terminal script ##
@@ -315,5 +320,5 @@ if __name__ == '__main__':
 
     # Print the result to stdout
     print ""  # New line
-    print pretty_json_relaxed(s, step_size=step_size, multi_line_strings=multi_line_strings, tab=tab, builder=builder)
+    print prettify(s, step_size=step_size, multi_line_strings=multi_line_strings, tab=tab, builder=builder)
     

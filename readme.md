@@ -11,7 +11,7 @@ prettyjson does NOT require correctly formatted JSON, whatever it gets it will t
 Input:
 
 ```
-{'name':'jake','social':{'github':"jake314159",'twitter': "@jake314159"}, 'my fav numbers': [π, 'e', 3]}
+{'name':'jake','social':{'github':"jake314159",'twitter': "@jake314159"}, 'numbers': [π, 'e', 3]}
 ```
 
 Output:
@@ -22,11 +22,7 @@ Output:
         'github': "jake314159",
         'twitter': "@jake314159"
     },
-    'my fav numbers': [
-        π,
-        'e',
-        3
-    ]
+    'numbers': [π, 'e', 3]
 }
 ```
 
@@ -53,7 +49,7 @@ The output:
     'no value': ,
     : 'no key',
     u'python unicode string?': True,
-    'python date': datetime(2016, 3, 10, 18, 57, 11, 470965),
+    'python date': datetime(2016,3,10,18,57,11,470965),
     'different quote types': "  'YES!'  ",
     'missing quotes': ThatWillAlsoBeFine!,
     'extra commas and colons?': : ,
@@ -63,7 +59,7 @@ The output:
 }
 ```
 
-# Usage
+# Command line usage
 
 The output from 'prettyjson --help'
 
@@ -82,31 +78,33 @@ Examples:
 
 
 Options:
-  -h, --help                    Display help text (and exit).
-  -s [INT], --step-size [INT]   Set the tab size used when formatting the JSON. Default 4
-  --strict                      Ensure input is correct JSON and error if not.
-                                Opposite of --relax.
-  --relax                       Attempt to format as JSON without verifying it's correctness
-                                Opposite of --strict and selected by default.
-  -p, --space                   Use spaces for alignment, -s is tab size so use -p
-                                Default: True
-  -t, --tab                     Use tabs rather than spaces for alignment, --step-size will be
-                                ignored if set. Default: False
-  --multi-line-strings          Don't break out of a string when a new line is encountered
-                                relax mode only and off by default. You probably don't need this.
-  -a, --advanced-parse          Do a more complex advanced parsing of the input to improve formatting
-                                for language specific constructs.
-                                Opposite of --basic-parse off by default.
-  -b, --basic-parse             Run a simpler parser that does not include some extra language specific
-                                formatting.
-                                Opposite of --advanced-parse, selected by default.
-  -f, --file                    Load the json input from a specified file rather than from standard input
-                                Any argument without a option tag will also be considered a file
-                                If more than one file is specified then all the files will be concatinated
-                                before parsing
-  --hard-error                  Exit on error with no attempt to recover
-  --soft-error                  Attempt to recover from an error
+  -h, --help                Display help text (and exit).
+  -s INT, --step-size INT   Set the tab size used. Default 4
+  --strict                  Ensure input is correct JSON and error if not.
+                            Opposite of --relax.
+  --relax                   Attempt to format without verifying the structure
+                            Opposite of --strict and selected by default.
+  -p, --space               Use spaces for alignment, -s is tab size so use -p
+                            Default: True
+  -t, --tab                 Use tabs rather than spaces for alignment,
+                            --step-size will be ignored if set. Default False
+  --multi-line-strings      Don't break out of a string when a new line is
+                            encountered in relax mode only. Default False
+  -b, --basic-parse         Run a simple parser that does not include language
+                            specific formatting.
+  -f, --file                Load the input from a file rather than stdin.
+                            If more than one file is specified then all the
+                            files will be concatinated before parsing
+  --hard-error              Exit on error with no attempt to recover
+  --soft-error              Attempt to recover from an error
+```
 
+# Python usage
+
+```
+from prettyjson import *
+data = "{'one':1,'two':2,'three':3}"
+print prettyjson.prettify(data)
 ```
 
 # Licence
