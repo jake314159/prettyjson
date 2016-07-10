@@ -152,13 +152,12 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
                     change += c
                     thing[i] = output
 
-            # Merge a few short elements into the same line
-            if consider_compress and max_length <= 5 and len(thing) <= 6:
+            # Merge a few short string elements into the same line
+            if consider_compress and max_length <= 5 and len(thing) <= 6 and len(thing) > 1:
                 change += 1
                 thing = [' '.join(thing)]
 
             # Remove any empty strings
-            # TODO: '[[1]]' seems to infi-loop, here I think
             for i in range(len(thing)-1, 0, -1):
                 if thing[i] == '':
                     thing.pop(i)
@@ -174,8 +173,14 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
         # Process until no more changes are made
         changes = 1
         output = self.stack[0]
+        runs = 100000  # Maximum number of process runs to allow
         while changes:
-            output, changes = self._process(output)
+            if runs >= 0:
+                output, changes = self._process(output)
+                runs -= 1
+            else:
+                sys.stderr.write("warning: Unable to finish output formatting\n")
+                break
 
         def _to_string(thing, depth=0):
             o = ''

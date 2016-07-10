@@ -34,6 +34,6 @@ SOFTWARE.
 
 """
 
-from prettyjson import prettify
+from prettyjson import prettify, stringify, dumps, pretty_json_builder
 
 __all__ = ['prettyjson']
