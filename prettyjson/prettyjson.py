@@ -220,11 +220,11 @@ def prettify(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
         elif c in ['"', "'"]:
             in_marks = c  # Enter speech marks
             builder.append_to_output(c)
-        elif c in ['{', '[']:
+        elif c in ['{', '[', '(']:
             # Increase step and add new line
             builder.append_to_output(c)
             builder.increase_step()
-        elif c in ['}', ']']:
+        elif c in ['}', ']', ')']:
             # Decrease step and add new line
             builder.decrease_step()
             builder.append_to_output(c)
