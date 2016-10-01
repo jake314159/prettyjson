@@ -111,21 +111,27 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
     def __init__(self):
         self.stack = [['']]
 
+    def _special_escape(self):
+        # Returns a Bool indicating if we are in a special escape that should not have it's formatting changed
+        return ('datetime' in self.stack[-1][-1] and ')' not in self.stack[-1][-1])
+
     def append_to_output(self, c):
         self.stack[-1][-1] += c
 
     def newline_to_output(self):
-        if not ('datetime' in self.stack[-1][-1] and ')' not in self.stack[-1][-1]):
+        if not self._special_escape():
             self.stack[-1].append('')
 
     def increase_step(self):
-        self.stack[-1].append([''])  # Add the new array to the correct part of the structure
-        self.stack.append(self.stack[-1][-1])  # Add the new focus to the top of the stack
+        if not self._special_escape():
+            self.stack[-1].append([''])  # Add the new array to the correct part of the structure
+            self.stack.append(self.stack[-1][-1])  # Add the new focus to the top of the stack
 
     def decrease_step(self):
-        if len(self.stack) > 1:
-            self.stack.pop()
-        self.newline_to_output()
+        if not self._special_escape():
+            if len(self.stack) > 1:
+                self.stack.pop()
+            self.newline_to_output()
 
     # Do any processing of the structure, eg. flattening lists with 1 element
     def _process(self, thing):
