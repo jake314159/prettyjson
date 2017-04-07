@@ -94,7 +94,7 @@ class pretty_json_builder:
         pass
     def decrease_step(self):
         pass
-    def to_string(self, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
+    def to_string(self, **argv):
         return ''
 
 class _pretty_json_builder_strict(pretty_json_builder):
@@ -103,7 +103,7 @@ class _pretty_json_builder_strict(pretty_json_builder):
     def init_string_process(self, s):
         self.s = s
         return None  # We have everything we need so stop any more parsing
-    def to_string(self, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
+    def to_string(self, step_size=4, tab=False, **argv):
         import json
         return json.dumps(json.loads(s), indent=step_size, separators=(',',': '))
 
@@ -170,7 +170,7 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
 
         return thing, change
 
-    def to_string(self, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False):
+    def to_string(self, step_size=4, multi_line_strings=False, advanced_parse=False, tab=False, **argv):
         step_char = ' '
         if tab:
             step_char = '\t'
@@ -179,7 +179,7 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
         # Process until no more changes are made
         changes = 1
         output = self.stack[0]
-        runs = 100000  # Maximum number of process runs to allow
+        runs = 10000  # Maximum number of process runs to allow
         while changes:
             if runs >= 0:
                 output, changes = self._process(output)
@@ -199,13 +199,13 @@ class _pretty_json_builder_relaxed(pretty_json_builder):
 
         return _to_string(output)
 
-def prettify(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
+def pretty_json_relaxed(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
     if not builder:
         builder = _pretty_json_builder_relaxed()
 
     s = builder.init_string_process(s) or '' # Give the builder a chance to process the raw string
 
-    # Parse over the string passing the appropriate commands to the builder class
+    # Parse over the string passing the appropriate commands to the builder
     in_marks = False  # Are we in speech marks? What character will indicate we are leaving it?
     escape = False  # Is the next character escaped?
     for c in s:
@@ -226,11 +226,11 @@ def prettify(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
         elif c in ['"', "'"]:
             in_marks = c  # Enter speech marks
             builder.append_to_output(c)
-        elif c in ['{', '[', '(']:
+        elif c in ['{', '[']:
             # Increase step and add new line
             builder.append_to_output(c)
             builder.increase_step()
-        elif c in ['}', ']', ')']:
+        elif c in ['}', ']']:
             # Decrease step and add new line
             builder.decrease_step()
             builder.append_to_output(c)
@@ -249,10 +249,6 @@ def prettify(s, step_size=4, multi_line_strings=False, tab=False, builder=None):
             builder.append_to_output(c)
 
     return builder.to_string(step_size=step_size, multi_line_strings=multi_line_strings, tab=tab)
-
-# aliases for prettify
-stringify = prettify
-dumps = prettify
 
 if __name__ == '__main__':
     ## Run as a terminal script ##
@@ -331,5 +327,5 @@ if __name__ == '__main__':
 
     # Print the result to stdout
     print ""  # New line
-    print prettify(s, step_size=step_size, multi_line_strings=multi_line_strings, tab=tab, builder=builder)
-    
+    print pretty_json_relaxed(s, step_size=step_size, multi_line_strings=multi_line_strings, tab=tab, builder=builder)
+
