@@ -97,6 +97,28 @@ class pretty_json_builder:
     def to_string(self, **argv):
         return ''
 
+class pretty_json_builder_basic(pretty_json_builder):
+    def __init__(self, step_size=None):
+        self.s = ''
+        self.step_size = 4
+        if step_size is not None:
+            self.step_size = step_size
+        self.step = 0
+    def append_to_output(self, c):
+        self.s += c
+    def newline_to_output(self):
+        self.s += '\n%s' % (' ' * self.step_size * self.step)
+    def increase_step(self):
+        self.step += 1
+        self.newline_to_output()
+    def decrease_step(self):
+        self.step -= 1
+        if self.step < 0:
+            self.step = 0
+        self.newline_to_output()
+    def to_string(self, **argv):
+        return self.s
+
 class _pretty_json_builder_strict(pretty_json_builder):
     def __init__(self):
         self.s = ''
